@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giải mã File với Keycode</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-100 to-purple-200 min-h-screen flex items-center justify-center transition-all duration-300">
+
+  <div class="bg-white shadow-2xl rounded-2xl p-8 max-w-md w-full animate-fade-in">
+    <h2 class="text-3xl font-bold text-center text-blue-700 mb-6">🔐 Xử lý File với Keycode</h2>
+
+    <!-- Chọn file -->
+    <div class="mb-4">
+      <label class="block text-gray-700 font-medium mb-2">📂 Chọn file:</label>
+      <input type="file" id="fileInput" class="w-full border rounded px-3 py-2 file:mr-4 file:py-2 file:px-4 file:border-0 file:bg-blue-600 file:text-white hover:file:bg-blue-700">
+      <p id="loadingFile" class="text-center text-blue-500 mt-2 hidden transition-opacity duration-300">📤 Đang tải file...</p>
+    </div>
+
+    <!-- Nhập keycode -->
+    <div class="mb-4">
+      <label class="block text-gray-700 font-medium mb-2">🔑 Nhập Keycode:</label>
+      <input type="text" id="keycodeInput" placeholder="Nhập keycode..." class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+    </div>
+
+    <!-- Chọn chế độ -->
+    <div class="mb-6">
+      <label class="block text-gray-700 font-medium mb-2">⚙️ Chọn chế độ:</label>
+      <select id="modeSelect" class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+        <option value="encrypt">🔒 Mã hóa</option>
+        <option value="decrypt">🔓 Giải mã</option>
+      </select>
+    </div>
+
+    <!-- Nút xử lý -->
+    <button onclick="processFile()" id="processBtn" class="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 transition flex items-center justify-center gap-2">
+      ⚙️ Xử lý & Tải về
+      <svg id="spinner" class="w-5 h-5 text-white animate-spin hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+      </svg>
+    </button>
+
+    <!-- Thông báo -->
+    <p id="status" class="text-center text-green-600 mt-4 hidden transition-opacity duration-300">✅ File đã xử lý và tải xuống!</p>
+    <p id="error" class="text-center text-red-600 mt-4 hidden transition-opacity duration-300">❌ Có lỗi xảy ra.</p>
+    <p id="keycodeError" class="text-center text-red-600 mt-4 hidden transition-opacity duration-300">❌ Keycode không đúng. Vui lòng kiểm tra lại.</p>
+  </div>
+
+  <script>
+    // Mã hóa / Giải mã XOR
+    function xorEncryptDecrypt(content, key) {
+      let result = '';
+      for (let i = 0; i < content.length; i++) {
+        result += String.fromCharCode(content.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+      }
+      return result;
+    }
+
+    // Xử lý file
+    function processFile() {
+      const fileInput = document.getElementById('fileInput');
+      const keycode = document.getElementById('keycodeInput').value;
+      const mode = document.getElementById('modeSelect').value;
+
+      const status = document.getElementById('status');
+      const error = document.getElementById('error');
+      const keycodeError = document.getElementById('keycodeError');
+      const spinner = document.getElementById('spinner');
+      const loadingFile = document.getElementById('loadingFile');
+
+      status.classList.add('hidden');
+      error.classList.add('hidden');
+      keycodeError.classList.add('hidden');
+
+      const file = fileInput.files[0];
+      if (!file || !keycode) {
+        alert('Vui lòng chọn file và nhập keycode.');
+        return;
+      }
+
+      // Hiện loading
+      spinner.classList.remove('hidden');
+      loadingFile.classList.remove('hidden');
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        loadingFile.classList.add('hidden'); // Ẩn thông báo "đang tải file..."
+
+        try {
+          const content = e.target.result;
+          let blob, filename;
+
+          if (mode === 'encrypt') {
+            const contentWithKeycode = keycode + '\n' + content;
+            const processed = xorEncryptDecrypt(contentWithKeycode, keycode);
+            blob = new Blob([processed], { type: 'text/plain' });
+            filename = 'encrypted_file.txt';
+          } else {
+            const decryptedContent = xorEncryptDecrypt(content, keycode);
+            const lines = decryptedContent.split('\n');
+            const fileKeycode = lines[0];
+
+            if (fileKeycode !== keycode) {
+              keycodeError.classList.remove('hidden');
+              spinner.classList.add('hidden');
+              return;
+            }
+
+            const originalContent = lines.slice(1).join('\n');
+            blob = new Blob([originalContent], { type: 'text/plain' });
+            filename = 'decrypted_file.txt';
+          }
+
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = filename;
+          link.click();
+
+          status.classList.remove('hidden');
+        } catch (err) {
+          console.error(err);
+          error.classList.remove('hidden');
+        }
+
+        spinner.classList.add('hidden');
+
+        setTimeout(() => {
+          status.classList.add('hidden');
+          error.classList.add('hidden');
+          keycodeError.classList.add('hidden');
+        }, 4000);
+      };
+
+      reader.readAsText(file);
+    }
+  </script>
+
+  <style>
+    @keyframes fade-in {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.5s ease-out;
+    }
+  </style>
+
+</body>
+</html>
